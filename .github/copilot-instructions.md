@@ -1,13 +1,14 @@
 # Proyecto
 Frontend de una app de pedidos y distribución (administración: clientes, sedes, bodegas, inventario).
-Backend Spring Boot 4 / Java 21, REST bajo /api/v1. Contrato: docs/api-contract.yaml (foto del
+Backend Spring Boot 4 / Java 21, REST bajo /api/v1. Contrato: api-contract.yaml (foto del
 backend; no inventes endpoints). Todavía no hay login ni órdenes.
 
 # Stack y herramientas
 Vite + React + TypeScript, React Router, TanStack Query, Mantine, openapi-typescript + openapi-fetch,
 Vitest + React Testing Library, ESLint + Prettier + eslint-plugin-boundaries.
-- TypeScript fijado en la serie ~6.0. NO subir a 7 (typescript-eslint aún no lo soporta).
+- TypeScript fijado en ~5.9 mientras openapi-typescript no acepte TypeScript 6; no subir a 6 ni a 7.
 - Nunca usar --force ni --legacy-peer-deps. Si hay conflicto de dependencias, avisar y bajar de versión.
+- No agregar dependencias fuera del stack aprobado sin preguntar.
 - Sin Redux, Axios, Tailwind, PWA ni offline por ahora.
 
 # Idioma

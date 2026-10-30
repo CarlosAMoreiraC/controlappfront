@@ -1,0 +1,7 @@
+node_modules
+dist
+coverage
+src/shared/api/generated/
+.github/copilot-instructions.md
+api-contract.yaml
+api-contract.live.json

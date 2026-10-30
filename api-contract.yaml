@@ -1,0 +1,1450 @@
+# Origen: controlapp/docs/api-contract.yaml
+# Fecha de copia: 2026-10-28
+
+openapi: 3.0.3
+info:
+  title: ControlApp API
+  version: v1
+  description: |
+    Contrato HTTP de los endpoints disponibles (`/api/v1`).
+
+    Convenciones:
+    - JSON (`application/json`).
+    - Altas devuelven `201`; bajas lógicas `204` sin cuerpo.
+    - Los listados omiten registros eliminados (soft delete).
+    - `Instant` se serializa como ISO-8601 (`date-time`); `LocalDate` como `YYYY-MM-DD`.
+
+    Errores:
+    - Organización, clientes e inventario usan `ErrorResponse`.
+    - Catálogo (productos, listas de precios e ítems) usa `ProblemDetail` (RFC 7807).
+servers:
+  - url: http://localhost:8080
+    description: Local (puerto por defecto de Spring Boot)
+
+tags:
+  - name: Sites
+  - name: Warehouses
+  - name: Products
+  - name: Price lists
+  - name: Price list items
+  - name: Customer types
+  - name: Customers
+  - name: Inventory
+
+paths:
+  /api/v1/sites:
+    get:
+      tags: [Sites]
+      summary: Listar sitios
+      operationId: listSites
+      responses:
+        '200':
+          description: Sitios activos (no eliminados)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SiteResponse'
+    post:
+      tags: [Sites]
+      summary: Crear sitio
+      operationId: createSite
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSiteRequest'
+      responses:
+        '201':
+          description: Sitio creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SiteResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse400'
+        '409':
+          description: Nombre de sitio duplicado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/sites/{id}:
+    get:
+      tags: [Sites]
+      summary: Obtener sitio
+      operationId: getSite
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Sitio encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SiteResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse404'
+    put:
+      tags: [Sites]
+      summary: Actualizar sitio
+      operationId: updateSite
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSiteRequest'
+      responses:
+        '200':
+          description: Sitio actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SiteResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse400'
+        '404':
+          $ref: '#/components/responses/ErrorResponse404'
+        '409':
+          description: Nombre de sitio duplicado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags: [Sites]
+      summary: Eliminar sitio (soft delete)
+      operationId: deleteSite
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204':
+          description: Eliminado
+        '404':
+          $ref: '#/components/responses/ErrorResponse404'
+
+  /api/v1/warehouses:
+    get:
+      tags: [Warehouses]
+      summary: Listar almacenes
+      description: Opcionalmente filtrados por sitio.
+      operationId: listWarehouses
+      parameters:
+        - name: siteId
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+            example: 1
+          description: Solo almacenes de este sitio
+      responses:
+        '200':
+          description: Almacenes no eliminados
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WarehouseResponse'
+    post:
+      tags: [Warehouses]
+      summary: Crear almacén
+      description: El nombre debe ser único dentro del sitio.
+      operationId: createWarehouse
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWarehouseRequest'
+      responses:
+        '201':
+          description: Almacén creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WarehouseResponse'
+        '400':
+          description: Validación fallida o el sitio no existe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Nombre de almacén duplicado en el sitio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/warehouses/{id}:
+    get:
+      tags: [Warehouses]
+      summary: Obtener almacén
+      operationId: getWarehouse
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Almacén encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WarehouseResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse404'
+    put:
+      tags: [Warehouses]
+      summary: Actualizar almacén
+      description: Actualiza nombre, código TNS y activo. No se puede mover de sitio.
+      operationId: updateWarehouse
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateWarehouseRequest'
+      responses:
+        '200':
+          description: Almacén actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WarehouseResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse400'
+        '404':
+          $ref: '#/components/responses/ErrorResponse404'
+        '409':
+          description: Nombre de almacén duplicado en el sitio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags: [Warehouses]
+      summary: Eliminar almacén (soft delete)
+      operationId: deleteWarehouse
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204':
+          description: Eliminado
+        '404':
+          $ref: '#/components/responses/ErrorResponse404'
+
+  /api/v1/products:
+    get:
+      tags: [Products]
+      summary: Listar productos
+      operationId: listProducts
+      responses:
+        '200':
+          description: Productos no eliminados
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProductResponse'
+    post:
+      tags: [Products]
+      summary: Crear producto
+      operationId: createProduct
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProductRequest'
+      responses:
+        '201':
+          description: Producto creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '400':
+          $ref: '#/components/responses/ProblemDetail400'
+        '409':
+          description: Código TNS de producto duplicado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /api/v1/products/{id}:
+    get:
+      tags: [Products]
+      summary: Obtener producto
+      operationId: getProduct
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Producto encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '404':
+          $ref: '#/components/responses/ProblemDetail404'
+    put:
+      tags: [Products]
+      summary: Actualizar producto
+      operationId: updateProduct
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProductRequest'
+      responses:
+        '200':
+          description: Producto actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '400':
+          $ref: '#/components/responses/ProblemDetail400'
+        '404':
+          $ref: '#/components/responses/ProblemDetail404'
+        '409':
+          description: Código TNS de producto duplicado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+    delete:
+      tags: [Products]
+      summary: Eliminar producto (soft delete)
+      operationId: deleteProduct
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204':
+          description: Eliminado
+        '404':
+          $ref: '#/components/responses/ProblemDetail404'
+
+  /api/v1/price-lists:
+    get:
+      tags: [Price lists]
+      summary: Listar listas de precios
+      operationId: listPriceLists
+      responses:
+        '200':
+          description: Listas no eliminadas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PriceListResponse'
+    post:
+      tags: [Price lists]
+      summary: Crear lista de precios
+      operationId: createPriceList
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePriceListRequest'
+      responses:
+        '201':
+          description: Lista creada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceListResponse'
+        '400':
+          $ref: '#/components/responses/ProblemDetail400'
+        '409':
+          description: Nombre de lista duplicado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /api/v1/price-lists/{id}:
+    get:
+      tags: [Price lists]
+      summary: Obtener lista de precios
+      operationId: getPriceList
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Lista encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceListResponse'
+        '404':
+          $ref: '#/components/responses/ProblemDetail404'
+    put:
+      tags: [Price lists]
+      summary: Actualizar lista de precios
+      operationId: updatePriceList
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePriceListRequest'
+      responses:
+        '200':
+          description: Lista actualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceListResponse'
+        '400':
+          $ref: '#/components/responses/ProblemDetail400'
+        '404':
+          $ref: '#/components/responses/ProblemDetail404'
+        '409':
+          description: Nombre de lista duplicado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+    delete:
+      tags: [Price lists]
+      summary: Eliminar lista de precios (soft delete)
+      operationId: deletePriceList
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204':
+          description: Eliminado
+        '404':
+          $ref: '#/components/responses/ProblemDetail404'
+
+  /api/v1/price-lists/{priceListId}/items:
+    get:
+      tags: [Price list items]
+      summary: Listar ítems de una lista
+      operationId: listPriceListItems
+      parameters:
+        - $ref: '#/components/parameters/PriceListIdPath'
+      responses:
+        '200':
+          description: Ítems no eliminados
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PriceListItemResponse'
+        '404':
+          $ref: '#/components/responses/ProblemDetail404'
+    post:
+      tags: [Price list items]
+      summary: Crear ítem de lista
+      description: Precio de un producto en un periodo de vigencia. No puede solaparse con otro ítem del mismo producto en la misma lista.
+      operationId: createPriceListItem
+      parameters:
+        - $ref: '#/components/parameters/PriceListIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePriceListItemRequest'
+      responses:
+        '201':
+          description: Ítem creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceListItemResponse'
+        '400':
+          description: Validación o periodo de vigencia inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Lista o producto no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Precio solapado para el producto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /api/v1/price-lists/{priceListId}/items/{id}:
+    get:
+      tags: [Price list items]
+      summary: Obtener ítem
+      operationId: getPriceListItem
+      parameters:
+        - $ref: '#/components/parameters/PriceListIdPath'
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Ítem encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceListItemResponse'
+        '404':
+          $ref: '#/components/responses/ProblemDetail404'
+    put:
+      tags: [Price list items]
+      summary: Actualizar ítem
+      operationId: updatePriceListItem
+      parameters:
+        - $ref: '#/components/parameters/PriceListIdPath'
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePriceListItemRequest'
+      responses:
+        '200':
+          description: Ítem actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceListItemResponse'
+        '400':
+          description: Validación o periodo de vigencia inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Ítem, lista o producto no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Precio solapado para el producto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+    delete:
+      tags: [Price list items]
+      summary: Eliminar ítem (soft delete)
+      operationId: deletePriceListItem
+      parameters:
+        - $ref: '#/components/parameters/PriceListIdPath'
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204':
+          description: Eliminado
+        '404':
+          $ref: '#/components/responses/ProblemDetail404'
+
+  /api/v1/customer-types:
+    get:
+      tags: [Customer types]
+      summary: Listar tipos de cliente
+      operationId: listCustomerTypes
+      responses:
+        '200':
+          description: Tipos no eliminados
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CustomerTypeResponse'
+    post:
+      tags: [Customer types]
+      summary: Crear tipo de cliente
+      operationId: createCustomerType
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCustomerTypeRequest'
+      responses:
+        '201':
+          description: Tipo creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerTypeResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse400'
+        '409':
+          description: Nombre de tipo duplicado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/customer-types/{id}:
+    get:
+      tags: [Customer types]
+      summary: Obtener tipo de cliente
+      operationId: getCustomerType
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Tipo encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerTypeResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse404'
+    put:
+      tags: [Customer types]
+      summary: Actualizar tipo de cliente
+      operationId: updateCustomerType
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCustomerTypeRequest'
+      responses:
+        '200':
+          description: Tipo actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerTypeResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse400'
+        '404':
+          $ref: '#/components/responses/ErrorResponse404'
+        '409':
+          description: Nombre de tipo duplicado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags: [Customer types]
+      summary: Eliminar tipo de cliente (soft delete)
+      operationId: deleteCustomerType
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204':
+          description: Eliminado
+        '404':
+          $ref: '#/components/responses/ErrorResponse404'
+
+  /api/v1/customers:
+    get:
+      tags: [Customers]
+      summary: Listar clientes
+      operationId: listCustomers
+      responses:
+        '200':
+          description: Clientes no eliminados
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CustomerResponse'
+    post:
+      tags: [Customers]
+      summary: Crear cliente
+      description: Requiere sitio, tipo de cliente y lista de precios existentes.
+      operationId: createCustomer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCustomerRequest'
+      responses:
+        '201':
+          description: Cliente creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerResponse'
+        '400':
+          description: Validación fallida (campos, TNS duplicado, o FKs inválidas)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Violación de integridad
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/customers/{id}:
+    get:
+      tags: [Customers]
+      summary: Obtener cliente
+      operationId: getCustomer
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Cliente encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse404'
+    put:
+      tags: [Customers]
+      summary: Actualizar cliente
+      operationId: updateCustomer
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCustomerRequest'
+      responses:
+        '200':
+          description: Cliente actualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerResponse'
+        '400':
+          $ref: '#/components/responses/ErrorResponse400'
+        '404':
+          $ref: '#/components/responses/ErrorResponse404'
+        '409':
+          description: Código TNS duplicado o violación de integridad
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags: [Customers]
+      summary: Eliminar cliente (soft delete)
+      operationId: deleteCustomer
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '204':
+          description: Eliminado
+        '404':
+          $ref: '#/components/responses/ErrorResponse404'
+
+  /api/v1/inventory:
+    get:
+      tags: [Inventory]
+      summary: Listar inventario
+      description: |
+        Filas de stock, opcionalmente filtradas por almacén y/o producto.
+        `available` = `onHand` − `reserved` y puede ser cero o negativo (backorders).
+      operationId: listInventory
+      parameters:
+        - name: warehouseId
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+            example: 1
+        - name: productId
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+            example: 1
+      responses:
+        '200':
+          description: Filas de inventario
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InventoryResponse'
+
+  /api/v1/inventory/{warehouseId}/{productId}:
+    get:
+      tags: [Inventory]
+      summary: Stock de un producto en un almacén
+      operationId: getInventory
+      parameters:
+        - $ref: '#/components/parameters/WarehouseIdPath'
+        - $ref: '#/components/parameters/ProductIdPath'
+      responses:
+        '200':
+          description: Inventario encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryResponse'
+        '404':
+          description: No existe registro para ese almacén y producto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/inventory/{warehouseId}/{productId}/adjustments:
+    post:
+      tags: [Inventory]
+      summary: Ajustar stock
+      description: |
+        Corrección manual del stock físico. Cantidad positiva suma unidades; negativa resta.
+        Motivo obligatorio. El stock resultante no puede ser negativo.
+      operationId: adjustInventory
+      parameters:
+        - $ref: '#/components/parameters/WarehouseIdPath'
+        - $ref: '#/components/parameters/ProductIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdjustInventoryRequest'
+      responses:
+        '200':
+          description: Stock ajustado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryResponse'
+        '400':
+          description: Validación fallida o almacén/producto inexistente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: El ajuste dejaría stock negativo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/inventory/{warehouseId}/{productId}/movements:
+    get:
+      tags: [Inventory]
+      summary: Listar movimientos de stock
+      description: Últimas entradas del libro, más recientes primero.
+      operationId: listInventoryMovements
+      parameters:
+        - $ref: '#/components/parameters/WarehouseIdPath'
+        - $ref: '#/components/parameters/ProductIdPath'
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 100
+            example: 100
+          description: Máximo de movimientos a devolver (1 a 500)
+      responses:
+        '200':
+          description: Movimientos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InventoryMovementResponse'
+
+components:
+  parameters:
+    IdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        example: 1
+    PriceListIdPath:
+      name: priceListId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        example: 1
+    WarehouseIdPath:
+      name: warehouseId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        example: 1
+    ProductIdPath:
+      name: productId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        example: 1
+
+  responses:
+    ErrorResponse400:
+      description: Validación fallida
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ErrorResponse404:
+      description: Recurso no encontrado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ProblemDetail400:
+      description: Validación fallida
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+    ProblemDetail404:
+      description: Recurso no encontrado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+
+  schemas:
+    ErrorResponse:
+      type: object
+      description: Cuerpo de error de organización, clientes e inventario. `detail` u `errors` (no ambos a la vez).
+      required: [title, status]
+      properties:
+        title:
+          type: string
+          example: Validation error
+        status:
+          type: integer
+          example: 400
+        detail:
+          type: string
+          nullable: true
+          example: Site not found with id 99
+        errors:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/FieldError'
+
+    FieldError:
+      type: object
+      required: [field, message]
+      properties:
+        field:
+          type: string
+          example: name
+        message:
+          type: string
+          example: must not be blank
+
+    ProblemDetail:
+      type: object
+      description: Error de catálogo (Spring ProblemDetail / RFC 7807).
+      required: [title, status]
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+          example: Product not found
+        status:
+          type: integer
+          example: 404
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri
+
+    CreateSiteRequest:
+      type: object
+      required: [name, active]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          example: Bogotá
+        active:
+          type: boolean
+          example: true
+
+    SiteResponse:
+      type: object
+      required: [id, name, active, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateWarehouseRequest:
+      type: object
+      required: [siteId, name, active]
+      properties:
+        siteId:
+          type: integer
+          format: int64
+          minimum: 1
+          example: 1
+        name:
+          type: string
+          minLength: 1
+          example: Bodega principal
+        tnsCode:
+          type: string
+          nullable: true
+          example: WH-BOG-01
+        active:
+          type: boolean
+          example: true
+
+    UpdateWarehouseRequest:
+      type: object
+      required: [name, active]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          example: Bodega principal
+        tnsCode:
+          type: string
+          nullable: true
+          example: WH-BOG-01
+        active:
+          type: boolean
+          example: true
+
+    WarehouseResponse:
+      type: object
+      required: [id, siteId, name, active, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        siteId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        tnsCode:
+          type: string
+          nullable: true
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateProductRequest:
+      type: object
+      required: [tnsCode, name, unit, vatPercent, active]
+      properties:
+        tnsCode:
+          type: string
+          minLength: 1
+          example: P-001
+        name:
+          type: string
+          minLength: 1
+          example: Harina 50kg
+        unit:
+          type: string
+          minLength: 1
+          example: KG
+        vatPercent:
+          type: number
+          minimum: 0
+          maximum: 100
+          multipleOf: 0.01
+          example: 19.00
+        active:
+          type: boolean
+          example: true
+
+    ProductResponse:
+      type: object
+      required:
+        [id, tnsCode, name, unit, vatPercent, active, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        tnsCode:
+          type: string
+        name:
+          type: string
+        unit:
+          type: string
+        vatPercent:
+          type: number
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreatePriceListRequest:
+      type: object
+      required: [name, validFrom]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          example: Lista general 2026
+        siteId:
+          type: integer
+          format: int64
+          minimum: 1
+          nullable: true
+          description: Opcional. Si se omite, la lista no está atada a un sitio.
+          example: 1
+        validFrom:
+          type: string
+          format: date
+          example: '2026-01-01'
+        validUntil:
+          type: string
+          format: date
+          nullable: true
+          example: '2026-12-31'
+
+    PriceListResponse:
+      type: object
+      required: [id, name, validFrom, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        siteId:
+          type: integer
+          format: int64
+          nullable: true
+        validFrom:
+          type: string
+          format: date
+        validUntil:
+          type: string
+          format: date
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreatePriceListItemRequest:
+      type: object
+      required: [productId, price, validFrom]
+      properties:
+        productId:
+          type: integer
+          format: int64
+          minimum: 1
+          example: 1
+        price:
+          type: number
+          minimum: 0
+          multipleOf: 0.01
+          example: 12500.00
+        validFrom:
+          type: string
+          format: date
+          example: '2026-01-01'
+        validUntil:
+          type: string
+          format: date
+          nullable: true
+          example: '2026-12-31'
+
+    PriceListItemResponse:
+      type: object
+      required:
+        [id, priceListId, productId, price, validFrom, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        priceListId:
+          type: integer
+          format: int64
+        productId:
+          type: integer
+          format: int64
+        price:
+          type: number
+        validFrom:
+          type: string
+          format: date
+        validUntil:
+          type: string
+          format: date
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateCustomerTypeRequest:
+      type: object
+      required: [name, discountPercent]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          example: Mayorista
+        discountPercent:
+          type: number
+          minimum: 0
+          maximum: 100
+          multipleOf: 0.01
+          example: 5.00
+
+    CustomerTypeResponse:
+      type: object
+      required: [id, name, discountPercent, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        discountPercent:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateCustomerRequest:
+      type: object
+      required:
+        [tnsCode, legalName, customerTypeId, siteId, priceListId, active]
+      properties:
+        tnsCode:
+          type: string
+          minLength: 1
+          example: C-1001
+        legalName:
+          type: string
+          minLength: 1
+          example: Panadería El Sol SAS
+        customerTypeId:
+          type: integer
+          format: int64
+          minimum: 1
+          example: 1
+        siteId:
+          type: integer
+          format: int64
+          minimum: 1
+          example: 1
+        priceListId:
+          type: integer
+          format: int64
+          minimum: 1
+          example: 1
+        discountPercent:
+          type: number
+          minimum: 0
+          maximum: 100
+          multipleOf: 0.01
+          nullable: true
+          example: 2.50
+        address:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        active:
+          type: boolean
+          example: true
+
+    CustomerResponse:
+      type: object
+      required:
+        - id
+        - tnsCode
+        - legalName
+        - customerTypeId
+        - siteId
+        - priceListId
+        - active
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: integer
+          format: int64
+        tnsCode:
+          type: string
+        legalName:
+          type: string
+        customerTypeId:
+          type: integer
+          format: int64
+        siteId:
+          type: integer
+          format: int64
+        priceListId:
+          type: integer
+          format: int64
+        discountPercent:
+          type: number
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    AdjustInventoryRequest:
+      type: object
+      required: [quantity, reason]
+      properties:
+        quantity:
+          type: number
+          description: Distinto de cero. Positivo suma; negativo resta. Hasta 11 enteros y 3 decimales.
+          example: -2.500
+        reason:
+          type: string
+          minLength: 1
+          example: Conteo físico
+
+    InventoryResponse:
+      type: object
+      required: [warehouseId, productId, onHand, reserved, available, updatedAt]
+      properties:
+        warehouseId:
+          type: integer
+          format: int64
+        productId:
+          type: integer
+          format: int64
+        onHand:
+          type: number
+        reserved:
+          type: number
+        available:
+          type: number
+          description: onHand − reserved; puede ser negativo
+        updatedAt:
+          type: string
+          format: date-time
+
+    InventoryMovementResponse:
+      type: object
+      required:
+        - id
+        - warehouseId
+        - productId
+        - type
+        - quantity
+        - resultingOnHand
+        - resultingReserved
+        - createdAt
+      properties:
+        id:
+          type: integer
+          format: int64
+        warehouseId:
+          type: integer
+          format: int64
+        productId:
+          type: integer
+          format: int64
+        type:
+          type: string
+          enum: [tns_import, reservation, release, shipment, adjustment]
+        quantity:
+          type: number
+        resultingOnHand:
+          type: number
+        resultingReserved:
+          type: number
+        reason:
+          type: string
+          nullable: true
+        referenceType:
+          type: string
+          nullable: true
+        referenceId:
+          type: string
+          nullable: true
+        userId:
+          type: integer
+          format: int64
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
